@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Treino Inteligente</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+
+<style>
+body { font-family: Arial; background:#111; color:#fff; margin:0; text-align:center; }
+.container { padding:15px; max-width:900px; margin:auto; }
+.card { background:#1e1e1e; padding:15px; margin:10px 0; border-radius:10px; }
+button { padding:10px; margin:5px; border:none; border-radius:6px; }
+.start{background:#28a745;color:#fff;}
+.pause{background:#ffc107;}
+.skip{background:#dc3545;color:#fff;}
+.progress{height:10px;background:#333;}
+.progress-bar{height:100%;width:0;background:#28a745;}
+input{margin:5px;padding:5px;}
+</style>
+
+</head>
+
+<body>
+<div class="container">
+
+<h2>🏋️ Sistema de Performance</h2>
+
+<div class="card">
+<h3>Pré-Treino</h3>
+<input type="number" id="sleep" placeholder="Horas de sono"><br>
+Álcool <input type="checkbox" id="alcohol">
+Cigarro <input type="checkbox" id="smoke">
+Energético <input type="checkbox" id="energy"><br>
+<button onclick="calculateReadiness()">Calcular</button>
+<p>Score: <span id="score">-</span></p>
+<p>Modo: <span id="mode">-</span></p>
+</div>
+
+<div class="card">
+<h3 id="exercise">Pronto</h3>
+<p>Rodada: <span id="round">1</span></p>
+<p id="phase">-</p>
+<h2 id="timer">0</h2>
+<div class="progress"><div class="progress-bar" id="progress"></div></div>
+</div>
+
+<div class="card">
+<button class="start" onclick="startWorkout()">Iniciar</button>
+<button class="pause" onclick="pauseWorkout()">Pausar</button>
+<button class="skip" onclick="skipStep()">Pular</button>
+</div>
+
+<div class="card">
+<h3>Histórico</h3>
+<ul id="history"></ul>
+</div>
+
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+
+const exercises=["Agachamento","Flexão","Afundo","Prancha","Remada","Burpee"];
+
+let index=0, round=1, maxRounds=3;
+let time=40, rest=20;
+let timer,running=false,totalTime=0,phase="exercise";
+let readinessScore=100,mode="normal";
+
+function calculateReadiness(){
+let sleep=parseFloat(document.getElementById("sleep").value)||0;
+let alcohol=document.getElementById("alcohol").checked;
+let smoke=document.getElementById("smoke").checked;
+let energy=document.getElementById("energy").checked;
+
+let score=100;
+
+if(sleep<4) score-=40;
+else if(sleep<6) score-=20;
+else if(sleep<7) score-=10;
+
+if(alcohol) score-=15;
+if(smoke) score-=10;
+if(energy) score-=10;
+
+readinessScore=Math.max(score,10);
+
+if(score>=80) mode="pesado";
+else if(score>=50) mode="normal";
+else mode="leve";
+
+if(mode==="pesado"){time=45;rest=15;maxRounds=4;}
+else if(mode==="leve"){time=30;rest=30;maxRounds=2;}
+else{time=40;rest=20;maxRounds=3;}
+
+document.getElementById("score").innerText=readinessScore;
+document.getElementById("mode").innerText=mode;
+}
+
+function startWorkout(){
+if(running) return;
+running=true;
+phase="exercise";
+runTimer(time);
+}
+
+function runTimer(duration){
+let t=duration;
+timer=setInterval(()=>{
+t--; totalTime++;
+updateUI(t,duration);
+if(t<=0){clearInterval(timer);nextStep();}
+},1000);
+}
+
+function updateUI(t,total){
+document.getElementById("timer").innerText=t;
+document.getElementById("exercise").innerText=exercises[index]||"Fim";
+document.getElementById("round").innerText=round;
+document.getElementById("phase").innerText=phase;
+document.getElementById("progress").style.width=((total-t)/total)*100+"%";
+}
+
+function nextStep(){
+if(phase==="exercise"){phase="rest";runTimer(rest);}
+else{
+phase="exercise";
+if(index<exercises.length-1){index++;runTimer(time);}
+else if(round<maxRounds){round++;index=0;runTimer(time);}
+else finishWorkout();
+}
+}
+
+function pauseWorkout(){clearInterval(timer);running=false;}
+function skipStep(){clearInterval(timer);nextStep();}
+
+function finishWorkout(){
+alert("Treino finalizado!");
+saveWorkout();
+reset();
+}
+
+function reset(){index=0;round=1;totalTime=0;running=false;}
+
+function saveWorkout(){
+let data=JSON.parse(localStorage.getItem("workouts"))||[];
+data.push({
+date:new Date().toLocaleDateString(),
+duration:totalTime,
+score:readinessScore
+});
+localStorage.setItem("workouts",JSON.stringify(data));
+loadHistory();
+}
+
+function loadHistory(){
+let data=JSON.parse(localStorage.getItem("workouts"))||[];
+let list=document.getElementById("history");
+list.innerHTML="";
+data.forEach(d=>{
+let li=document.createElement("li");
+li.innerText=`${d.date} | ${d.duration}s | score ${d.score}`;
+list.appendChild(li);
+});
+}
+
+loadHistory();
+</script>
+
+</body>
+</html>
