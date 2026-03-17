@@ -1,4 +1,4 @@
-const CACHE_NAME = "treino-app-v2";
+const CACHE_NAME = "treino-app-v1";
 
 const urlsToCache = [
 "./",
